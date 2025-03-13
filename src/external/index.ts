@@ -1,32 +1,28 @@
 import {
   makeRequest,
   makeRequestToMaster,
-} from "../api/gramjs/worker/connector";
-import { getActions, getGlobal } from "../global";
-import { Requester, Responder } from "jsonrpc-iframe";
-import * as CUSTOM from "./custom";
-import { Actions, Custom, Events, Methods } from "./types";
-import { selectChat, selectCurrentMessageList } from "../global/selectors";
-import { addActionHandler } from "../global";
-import { ActionReturnType } from "../global/types";
-import { getCurrentTabId } from "../util/establishMultitabRole";
-import { selectTabState } from "../global/selectors";
-import { updateOriginWithBranch } from "./func"
+} from '../api/gramjs/worker/connector';
+import { getActions, getGlobal } from '../global';
+import { Requester, Responder } from 'jsonrpc-iframe';
+import * as CUSTOM from './custom';
+import { Actions, Custom, Events, Methods } from './types';
+import { selectChat, selectCurrentMessageList } from '../global/selectors';
+import { addActionHandler } from '../global';
+import { ActionReturnType } from '../global/types';
+import { getCurrentTabId } from '../util/establishMultitabRole';
+import { selectTabState } from '../global/selectors';
+import { updateOriginWithBranch } from './func';
 
-const DEFAULT_ORIGIN = "https://crm.dise.app";
+const DEFAULT_ORIGIN = 'https://crm.dise.app';
 
-const DISE_ENV = process.env.DISE_ENV 
+const DISE_ENV = process.env.DISE_ENV;
 
 let MAIN_FRAME_ORIGIN = process.env.MAIN_FRAME_ORIGIN || DEFAULT_ORIGIN;
 
-// if (DISE_ENV === 'testing') {
-//   MAIN_FRAME_ORIGIN = updateOriginWithBranch(MAIN_FRAME_ORIGIN);
-// }
-
-let actions = new Responder<Actions>("actions", MAIN_FRAME_ORIGIN);
+let actions = new Responder<Actions>('actions', MAIN_FRAME_ORIGIN);
 
 actions.subscribeUniversal(async (name, args) => {
-  console.log("Received action", name, args);
+  console.log('Received action', name, args);
 
   let acts = getActions();
   let method = acts[name] as (...args: any[]) => any;
@@ -35,14 +31,14 @@ actions.subscribeUniversal(async (name, args) => {
   return result;
 });
 
-let clientApi = new Responder<Methods>("methods", MAIN_FRAME_ORIGIN);
+let clientApi = new Responder<Methods>('methods', MAIN_FRAME_ORIGIN);
 
 clientApi.subscribeUniversal((name, args) => {
   const global = getGlobal();
 
   const promise = selectTabState(global).isMasterTab
     ? makeRequest({
-        type: "callMethod",
+        type: 'callMethod',
         name: name,
         args,
       })
@@ -60,7 +56,7 @@ clientApi.subscribeUniversal((name, args) => {
   // });
 });
 
-let custom = new Responder<Custom>("custom", MAIN_FRAME_ORIGIN);
+let custom = new Responder<Custom>('custom', MAIN_FRAME_ORIGIN);
 
 custom.subscribeUniversal((name, args) => {
   // console.log("Received custom", name, args);
@@ -69,16 +65,16 @@ custom.subscribeUniversal((name, args) => {
   return method(...args);
 });
 
-let status = new Responder("status", MAIN_FRAME_ORIGIN);
+let status = new Responder('status', MAIN_FRAME_ORIGIN);
 
 status.subscribeUniversal((name) => {
   return true;
 });
 
 export let events = new Requester<Events>(
-  "events",
+  'events',
   window.parent.window,
-  MAIN_FRAME_ORIGIN
+  MAIN_FRAME_ORIGIN,
 );
 
 export function __init() {
@@ -90,20 +86,20 @@ export function __init() {
 
   let actions = getActions();
 
-  addActionHandler("apiUpdate", (global, actions, update): ActionReturnType => {
-    switch (update["@type"]) {
-      case "newMessage": {
+  addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
+    switch (update['@type']) {
+      case 'newMessage': {
         const { chatId, id, message, shouldForceReply, wasDrafted } = update;
         events.proxy.newMessage(message);
         break;
       }
-      case "updateChatInbox": {
+      case 'updateChatInbox': {
         events.proxy.updateChatInbox(update);
       }
-      case "updateChat": {
+      case 'updateChat': {
         events.proxy.updateChat(update);
       }
-      case "updateChatMembers": {
+      case 'updateChatMembers': {
         events.proxy.updateChatMembers(update);
       }
       default:
@@ -112,37 +108,37 @@ export function __init() {
   });
 
   addActionHandler(
-    "loadAllChats",
+    'loadAllChats',
     async (global, actions, payload): Promise<void> => {
-      if (global.connectionState === "connectionStateReady") {
+      if (global.connectionState === 'connectionStateReady') {
         events.proxy.syncStateChanged({ isSynced: true });
       }
-    }
+    },
   );
 
   addActionHandler(
-    "loadChatFolders",
+    'loadChatFolders',
     async (global, actions, payload): Promise<void> => {
-      if (global.connectionState === "connectionStateReady") {
+      if (global.connectionState === 'connectionStateReady') {
         events.proxy.syncStateChanged({ isSynced: true });
       }
-    }
+    },
   );
 
   addActionHandler(
-    "signOut",
+    'signOut',
     async (global, actions, payload): Promise<void> => {
       events.proxy.loggedOut();
       events.proxy.syncStateChanged({ isSynced: false });
-    }
+    },
   );
 
-  addActionHandler("initShared", (global): ActionReturnType => {
-    actions.setSettingOption({ shouldUseSystemTheme: false, theme: "light" });
+  addActionHandler('initShared', (global): ActionReturnType => {
+    actions.setSettingOption({ shouldUseSystemTheme: false, theme: 'light' });
   });
 
   addActionHandler(
-    "markMessageListRead",
+    'markMessageListRead',
     (global, actions, payload): ActionReturnType => {
       const { maxId, tabId = getCurrentTabId() } = payload!;
 
@@ -154,7 +150,7 @@ export function __init() {
       const { chatId } = currentMessageList;
       const chat = selectChat(global, chatId);
       events.proxy.markMessageListRead(chat);
-    }
+    },
   );
 
   const check = () => {
