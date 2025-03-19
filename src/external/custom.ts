@@ -48,6 +48,8 @@ export function getChatsInTheFolder(folderId: number) {
 export function getChatWithLastMessageById(chatId: number) {
   const g = getGlobal();
 
+  console.log('globalThing', g);
+
   if (!g.chats?.byId?.[chatId]) {
     return undefined;
   }
@@ -104,14 +106,15 @@ export function getChatById(chatId: number) {
 }
 
 export function getAuthInfo():
-| { authed: false }
-| { authed: true; userId: string } {
+  | { authed: false; authState: string | undefined }
+  | { authed: true; userId: string; authState: string | undefined } {
   const g = getGlobal();
   const authed = g.authState === 'authorizationStateReady';
   const userId = g.currentUserId;
-  if (!authed || !userId) return { authed: false };
+  if (!authed || !userId) return { authed: false, authState: g.authState };
 
   return {
+    authState: g.authState,
     authed: true,
     userId,
   };
@@ -126,7 +129,9 @@ export function openSettingsButton() {
       // Use setTimeout to avoid blocking the main thread
       setTimeout(tryCloseMessages, 100);
     } else {
-      const settingsButton = document.querySelector('.MenuItem.compact .icon.icon-settings');
+      const settingsButton = document.querySelector(
+        '.MenuItem.compact .icon.icon-settings',
+      );
       if (settingsButton) {
         (settingsButton as HTMLElement).click();
       } else {
@@ -158,7 +163,9 @@ export function findChatByTitle(searchTitle: string) {
   const normalizedSearch = searchTitle.toLowerCase().trim();
 
   // Find the first chat that matches the title
-  const foundChat = Object.values(g.chats?.byId || {}).find((chat) => chat.title?.toLowerCase().includes(normalizedSearch));
+  const foundChat = Object.values(g.chats?.byId || {}).find((chat) =>
+    chat.title?.toLowerCase().includes(normalizedSearch),
+  );
 
   if (!foundChat) {
     return undefined;

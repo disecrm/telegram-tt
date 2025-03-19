@@ -40,15 +40,15 @@ const {
 const CSP = `
   default-src 'self';
   connect-src 'self' wss://*.web.telegram.org blob: http: https: ${
-  APP_ENV === 'development' ? 'wss:' : ''
-};
+    APP_ENV === 'development' ? 'wss:' : ''
+  };
   script-src 'self' 'wasm-unsafe-eval' https://t.me/_websync_ https://telegram.me/_websync_;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://ss3.4sqi.net/img/categories_v2/
   ${IS_PACKAGED_ELECTRON ? `${BASE_URL}/` : ''};
   media-src 'self' blob: data: ${
-  IS_PACKAGED_ELECTRON ? [`${BASE_URL}/`, ELECTRON_HOST_URL].join(' ') : ''
-};
+    IS_PACKAGED_ELECTRON ? [`${BASE_URL}/`, ELECTRON_HOST_URL].join(' ') : ''
+  };
   object-src 'none';
   frame-src http: https:;
   base-uri 'none';
@@ -189,11 +189,11 @@ export default function createConfig(
       ),
       ...(APP_MOCKED_CLIENT === '1'
         ? [
-          new NormalModuleReplacementPlugin(
-            /src[\\/]lib[\\/]gramjs[\\/]client[\\/]TelegramClient\.js/,
-            './MockClient.ts',
-          ),
-        ]
+            new NormalModuleReplacementPlugin(
+              /src[\\/]lib[\\/]gramjs[\\/]client[\\/]TelegramClient\.js/,
+              './MockClient.ts',
+            ),
+          ]
         : []),
       new HtmlWebpackPlugin({
         appTitle: APP_TITLE,
@@ -225,7 +225,7 @@ export default function createConfig(
         RELEASE_DATETIME: Date.now(),
         TELEGRAM_API_ID: undefined,
         TELEGRAM_API_HASH: undefined,
-        MAIN_FRAME_ORIGIN: undefined,
+        // MAIN_FRAME_ORIGIN: undefined,
         DISE_ENV: '',
         // eslint-disable-next-line no-null/no-null
         TEST_SESSION: null,
@@ -239,7 +239,8 @@ export default function createConfig(
         APP_REVISION: DefinePlugin.runtimeValue(
           () => {
             const { branch, commit } = getGitMetadata();
-            const shouldDisplayCommit = APP_ENV === 'staging' || !branch || branch === 'HEAD';
+            const shouldDisplayCommit =
+              APP_ENV === 'staging' || !branch || branch === 'HEAD';
             return JSON.stringify(shouldDisplayCommit ? commit : branch);
           },
           mode === 'development' ? true : [],

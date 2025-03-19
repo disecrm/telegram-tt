@@ -156,11 +156,11 @@ const App: FC<StateProps> = ({
   }
 
   if (
-    activeKey !== AppScreens.lock
-    && activeKey !== AppScreens.inactive
-    && activeKey !== AppScreens.main
-    && parseInitialLocationHash()?.tgWebAuthToken
-    && !hasWebAuthTokenFailed
+    activeKey !== AppScreens.lock &&
+    activeKey !== AppScreens.inactive &&
+    activeKey !== AppScreens.main &&
+    parseInitialLocationHash()?.tgWebAuthToken &&
+    !hasWebAuthTokenFailed
   ) {
     page = 'main';
     activeKey = AppScreens.main;
@@ -212,7 +212,8 @@ const App: FC<StateProps> = ({
       document.body.classList.add(styles.bg);
     } else {
       setTimeout(() => {
-        window.location.href = process.env.MAIN_FRAME_ORIGIN || 'https://crm.slise.xyz';
+        window.location.href =
+          process.env.MAIN_FRAME_ORIGIN || 'https://app.trydise.com';
       }, 5000);
     }
   }, []);
@@ -244,9 +245,9 @@ const App: FC<StateProps> = ({
         shouldCleanup
         className={buildClassName(
           'full-height',
-          (activeKey === AppScreens.auth
-            || prevActiveKey === AppScreens.auth)
-            && 'is-auth',
+          (activeKey === AppScreens.auth ||
+            prevActiveKey === AppScreens.auth) &&
+            'is-auth',
         )}
         renderCount={TRANSITION_RENDER_COUNT}
       >

@@ -13,11 +13,13 @@ import { getCurrentTabId } from '../util/establishMultitabRole';
 import { selectTabState } from '../global/selectors';
 import { updateOriginWithBranch } from './func';
 
-const DEFAULT_ORIGIN = 'https://crm.dise.app';
+const DEFAULT_ORIGIN = window.location.origin;
 
-const DISE_ENV = process.env.DISE_ENV;
+console.log('DEFAULT_ORIGIN', DEFAULT_ORIGIN);
 
-let MAIN_FRAME_ORIGIN = process.env.MAIN_FRAME_ORIGIN || DEFAULT_ORIGIN;
+let MAIN_FRAME_ORIGIN = DEFAULT_ORIGIN;
+
+console.log('MAIN_FRAME_ORIGIN', MAIN_FRAME_ORIGIN);
 
 let actions = new Responder<Actions>('actions', MAIN_FRAME_ORIGIN);
 

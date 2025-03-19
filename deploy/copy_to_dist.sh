@@ -8,3 +8,6 @@ cp ./node_modules/opus-recorder/dist/decoderWorker.min.wasm ${1:-"dist"}
 
 cp -R ./node_modules/emoji-data-ios/img-apple-64 ${1:-"dist"}
 cp -R ./node_modules/emoji-data-ios/img-apple-160 ${1:-"dist"}
+
+# now copy all dist into ../crm/public
+cp -R ${1:-"dist"}/* ../crm/public/iframe
