@@ -15,6 +15,7 @@ import type {
   ApiBotMenuButton,
   ApiChat,
   ApiChatFullInfo,
+  ApiDraft,
   ApiFormattedText,
   ApiMessage,
   ApiMessageEntity,
@@ -29,15 +30,21 @@ import type {
   ApiWebPage,
 } from '../../api/types';
 import type {
-  ApiDraft, GlobalState, MessageList, MessageListType, TabState,
+  GlobalState, TabState,
 } from '../../global/types';
 import type {
-  IAnchorPosition, InlineBotSettings, ISettings, ThreadId,
+  IAnchorPosition,
+  InlineBotSettings,
+  ISettings,
+  MessageList,
+  MessageListType,
+  ThreadId,
 } from '../../types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import {
   BASE_EMOJI_KEYWORD_LANG,
+  DEFAULT_MAX_MESSAGE_LENGTH,
   EDITABLE_INPUT_MODAL_ID,
   HEART_REACTION,
   MAX_UPLOAD_FILEPART_SIZE,
@@ -59,6 +66,7 @@ import {
   isSystemBot,
   isUserId,
 } from '../../global/helpers';
+import { getChatNotifySettings } from '../../global/helpers/notifications';
 import {
   selectBot,
   selectCanPlayAnimatedEmojis,
@@ -79,6 +87,8 @@ import {
   selectIsReactionPickerOpen,
   selectIsRightColumnShown,
   selectNewestMessageWithBotKeyboardButtons,
+  selectNotifyDefaults,
+  selectNotifyException,
   selectNoWebPage,
   selectPeerStory,
   selectPerformanceSettingsValue,
@@ -119,6 +129,7 @@ import useDerivedState from '../../hooks/useDerivedState';
 import useEffectWithPrevDeps from '../../hooks/useEffectWithPrevDeps';
 import useFlag from '../../hooks/useFlag';
 import useGetSelectionRange from '../../hooks/useGetSelectionRange';
+import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 import useOldLang from '../../hooks/useOldLang';
 import usePreviousDeprecated from '../../hooks/usePreviousDeprecated';
@@ -163,6 +174,7 @@ import ReactionSelector from '../middle/message/reactions/ReactionSelector';
 import Button from '../ui/Button';
 import ResponsiveHoverButton from '../ui/ResponsiveHoverButton';
 import Spinner from '../ui/Spinner';
+import Transition from '../ui/Transition';
 import Avatar from './Avatar';
 import Icon from './icons/Icon';
 import ReactionAnimatedEmoji from './reactions/ReactionAnimatedEmoji';
@@ -264,6 +276,8 @@ type StateProps =
     areEffectsSupported?: boolean;
     canPlayEffect?: boolean;
     shouldPlayEffect?: boolean;
+    maxMessageLength: number;
+    isSilentPosting?: boolean;
   };
 
 enum MainButtonState {
@@ -285,7 +299,6 @@ const SCREEN_WIDTH_TO_HIDE_PLACEHOLDER = 600; // px
 
 const MOBILE_KEYBOARD_HIDE_DELAY_MS = 100;
 const SELECT_MODE_TRANSITION_MS = 200;
-const MESSAGE_MAX_LENGTH = 4096;
 const SENDING_ANIMATION_DURATION = 350;
 const MOUNT_ANIMATION_DURATION = 430;
 
@@ -297,9 +310,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   canScheduleUntilOnline,
   isReady,
   isMobile,
-  onDropHide,
-  onFocus,
-  onBlur,
   editingMessage,
   chatId,
   threadId,
@@ -369,7 +379,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   quickReplyMessages,
   quickReplies,
   canSendQuickReplies,
-  onForward,
   webPagePreview,
   noWebPage,
   isContactRequirePremium,
@@ -378,6 +387,12 @@ const Composer: FC<OwnProps & StateProps> = ({
   areEffectsSupported,
   canPlayEffect,
   shouldPlayEffect,
+  maxMessageLength,
+  isSilentPosting,
+  onDropHide,
+  onFocus,
+  onBlur,
+  onForward,
 }) => {
   const {
     sendMessage,
@@ -404,9 +419,11 @@ const Composer: FC<OwnProps & StateProps> = ({
     saveEffectInDraft,
     setReactionEffect,
     hideEffectInComposer,
+    updateChatSilentPosting,
   } = getActions();
 
-  const lang = useOldLang();
+  const oldLang = useOldLang();
+  const lang = useLang();
 
   // eslint-disable-next-line no-null/no-null
   const inputRef = useRef<HTMLDivElement>(null);
@@ -777,21 +794,21 @@ const Composer: FC<OwnProps & StateProps> = ({
     const notificationNumber = customEmojiNotificationNumber.current;
     if (!notificationNumber) {
       showNotification({
-        message: lang('UnlockPremiumEmojiHint'),
+        message: oldLang('UnlockPremiumEmojiHint'),
         action: {
           action: 'openPremiumModal',
           payload: { initialSection: 'animated_emoji' },
         },
-        actionText: lang('PremiumMore'),
+        actionText: oldLang('PremiumMore'),
       });
     } else {
       showNotification({
-        message: lang('UnlockPremiumEmojiHint2'),
+        message: oldLang('UnlockPremiumEmojiHint2'),
         action: {
           action: 'openChat',
           payload: { id: currentUserId, shouldReplaceHistory: true },
         },
-        actionText: lang('Open'),
+        actionText: oldLang('Open'),
       });
     }
     customEmojiNotificationNumber.current = Number(!notificationNumber);
@@ -865,7 +882,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const validateTextLength = useLastCallback((text: string, isAttachmentModal?: boolean) => {
-    const maxLength = isAttachmentModal ? captionLimit : MESSAGE_MAX_LENGTH;
+    const maxLength = isAttachmentModal ? captionLimit : maxMessageLength;
     if (text?.length > maxLength) {
       const extraLength = text.length - maxLength;
       showDialog({
@@ -902,7 +919,7 @@ const Composer: FC<OwnProps & StateProps> = ({
           : slowMode.seconds - secondsSinceLastMessage!;
         showDialog({
           data: {
-            message: lang('SlowModeHint', formatMediaDuration(secondsRemaining)),
+            message: oldLang('SlowModeHint', formatMediaDuration(secondsRemaining)),
             isSlowMode: true,
             hasErrorKey: false,
           },
@@ -934,6 +951,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     if (!currentMessageList && !storyId) {
       return;
     }
+    isSilent = isSilent || isSilentPosting;
 
     const { text, entities } = parseHtmlAsFormattedText(getHtml());
     if (!text && !attachmentsToSend.length) {
@@ -1009,6 +1027,8 @@ const Composer: FC<OwnProps & StateProps> = ({
     if (!currentMessageList && !storyId) {
       return;
     }
+
+    isSilent = isSilent || isSilentPosting;
 
     let currentAttachments = attachments;
 
@@ -1117,10 +1137,11 @@ const Composer: FC<OwnProps & StateProps> = ({
       const { id, queryId, isSilent } = args;
       sendInlineBotResult({
         id,
+        chatId,
+        threadId,
         queryId,
         scheduledAt,
-        isSilent,
-        messageList,
+        isSilent: isSilent || isSilentPosting,
       });
       return;
     }
@@ -1188,6 +1209,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
+    isSilent = isSilent || isSilentPosting;
+
     if (isInScheduledList || isScheduleRequested) {
       forceShowSymbolMenu();
       requestCalendar((scheduledAt) => {
@@ -1215,6 +1238,8 @@ const Composer: FC<OwnProps & StateProps> = ({
     if (!currentMessageList && !storyId) {
       return;
     }
+
+    isSilent = isSilent || isSilentPosting;
 
     sticker = {
       ...sticker,
@@ -1252,6 +1277,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
+    isSilent = isSilent || isSilentPosting;
+
     if (isInScheduledList || isScheduleRequested) {
       requestCalendar((scheduledAt) => {
         handleMessageSchedule({
@@ -1264,8 +1291,9 @@ const Composer: FC<OwnProps & StateProps> = ({
       sendInlineBotResult({
         id: inlineResult.id,
         queryId: inlineResult.queryId,
+        threadId,
+        chatId,
         isSilent,
-        messageList: currentMessageList!,
       });
     }
 
@@ -1298,7 +1326,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       });
       closePollModal();
     } else {
-      sendMessage({ messageList: currentMessageList, poll });
+      sendMessage({ messageList: currentMessageList, poll, isSilent: isSilentPosting });
       closePollModal();
     }
   });
@@ -1368,6 +1396,17 @@ const Composer: FC<OwnProps & StateProps> = ({
     });
   });
 
+  const handleToggleSilentPosting = useLastCallback(() => {
+    const newValue = !isSilentPosting;
+    updateChatSilentPosting({ chatId, isEnabled: newValue });
+
+    showNotification({
+      localId: 'silentPosting',
+      icon: newValue ? 'mute' : 'unmute',
+      message: lang(`ComposerSilentPosting${newValue ? 'Enabled' : 'Disabled'}Tootlip`),
+    });
+  });
+
   useEffect(() => {
     if (isRightColumnShown && isMobile) {
       closeSymbolMenu();
@@ -1386,10 +1425,11 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
   }, [isSelectModeActive, enableHover, disableHover, isReady]);
 
-  const withBotMenuButton = isChatWithBot && botMenuButton?.type === 'webApp' && !editingMessage;
-  const isBotMenuButtonOpen = useDerivedState(() => {
-    return withBotMenuButton && !getHtml() && !activeVoiceRecording;
-  }, [withBotMenuButton, getHtml, activeVoiceRecording]);
+  const hasText = useDerivedState(() => Boolean(getHtml()), [getHtml]);
+
+  const withBotMenuButton = isChatWithBot && botMenuButton?.type === 'webApp' && !editingMessage
+    && messageListType === 'thread';
+  const isBotMenuButtonOpen = withBotMenuButton && !hasText && !activeVoiceRecording;
 
   const [timedPlaceholderLangKey, timedPlaceholderDate] = useMemo(() => {
     if (slowMode?.nextSendDate) {
@@ -1409,11 +1449,33 @@ const Composer: FC<OwnProps & StateProps> = ({
   || isCustomSendMenuOpen || Boolean(activeVoiceRecording) || attachments.length > 0 || isInputHasFocus;
   const isReactionSelectorOpen = isComposerHasFocus && !isReactionPickerOpen && isInStoryViewer && !isAttachMenuOpen
     && !isSymbolMenuOpen;
-  const placeholderForForumAsMessages = chat?.isForum && chat?.isForumAsMessages && threadId === MAIN_THREAD_ID
-    ? (replyToTopic
-      ? lang('Chat.InputPlaceholderReplyInTopic', replyToTopic.title)
-      : lang('Message.Placeholder.MessageInGeneral'))
-    : undefined;
+
+  const placeholder = useMemo(() => {
+    if (activeVoiceRecording && windowWidth <= SCREEN_WIDTH_TO_HIDE_PLACEHOLDER) {
+      return '';
+    }
+
+    if (!isComposerBlocked) {
+      if (botKeyboardPlaceholder) return botKeyboardPlaceholder;
+      if (inputPlaceholder) return inputPlaceholder;
+      if (chat?.isForum && chat?.isForumAsMessages && threadId === MAIN_THREAD_ID) {
+        return replyToTopic
+          ? lang('ComposerPlaceholderTopic', { topic: replyToTopic.title })
+          : lang('ComposerPlaceholderTopicGeneral');
+      }
+      if (isChannel) {
+        return lang(isSilentPosting ? 'ComposerPlaceholderBroadcastSilent' : 'ComposerPlaceholderBroadcast');
+      }
+      return lang('ComposerPlaceholder');
+    }
+
+    if (isInStoryViewer) return lang('ComposerStoryPlaceholderLocked');
+
+    return lang('ComposerPlaceholderNoText');
+  }, [
+    activeVoiceRecording, botKeyboardPlaceholder, chat, inputPlaceholder, isChannel, isComposerBlocked,
+    isInStoryViewer, isSilentPosting, lang, replyToTopic, threadId, windowWidth,
+  ]);
 
   useEffect(() => {
     if (isComposerHasFocus) {
@@ -1442,7 +1504,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         if (areVoiceMessagesNotAllowed) {
           if (!canSendVoiceByPrivacy) {
             showNotification({
-              message: lang('VoiceMessagesRestrictedByPrivacy', chat?.title),
+              message: oldLang('VoiceMessagesRestrictedByPrivacy', chat?.title),
             });
           } else if (!canSendVoices) {
             showAllowedMessageTypesNotification({ chatId });
@@ -1778,9 +1840,10 @@ const Composer: FC<OwnProps & StateProps> = ({
                   round
                   color="translucent"
                   onClick={isSendAsMenuOpen ? closeSendAsMenu : handleSendAsMenuOpen}
-                  ariaLabel={lang('SendMessageAsTitle')}
+                  ariaLabel={oldLang('SendMessageAsTitle')}
                   className={buildClassName(
                     'send-as-button',
+                    'composer-action-button',
                     shouldAnimateSendAsButtonRef.current && 'appear-animation',
                   )}
                 >
@@ -1830,13 +1893,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             isReady={isReady}
             isActive={!hasAttachments}
             getHtml={getHtml}
-            placeholder={
-              activeVoiceRecording && windowWidth <= SCREEN_WIDTH_TO_HIDE_PLACEHOLDER
-                ? ''
-                : (!isComposerBlocked
-                  ? (botKeyboardPlaceholder || inputPlaceholder || lang(placeholderForForumAsMessages || 'Message'))
-                  : isInStoryViewer ? lang('StoryRepliesLocked') : lang('Chat.PlaceholderTextNotAllowed'))
-            }
+            placeholder={placeholder}
             timedPlaceholderDate={timedPlaceholderDate}
             timedPlaceholderLangKey={timedPlaceholderLangKey}
             forcedPlaceholder={inlineBotHelp}
@@ -1856,29 +1913,55 @@ const Composer: FC<OwnProps & StateProps> = ({
               {isInlineBotLoading && Boolean(inlineBotId) && (
                 <Spinner color="gray" />
               )}
-              {withScheduledButton && (
-                <Button
-                  round
-                  faded
-                  className="scheduled-button"
-                  color="translucent"
-                  onClick={handleAllScheduledClick}
-                  ariaLabel="Open scheduled messages"
-                >
-                  <Icon name="schedule" />
-                </Button>
-              )}
-              {Boolean(botKeyboardMessageId) && !activeVoiceRecording && !editingMessage && (
-                <ResponsiveHoverButton
-                  className={isBotKeyboardOpen ? 'activated' : ''}
-                  round
-                  color="translucent"
-                  onActivate={openBotKeyboard}
-                  ariaLabel="Open bot command keyboard"
-                >
-                  <Icon name="bot-command" />
-                </ResponsiveHoverButton>
-              )}
+              <Transition
+                className="composer-action-buttons-container"
+                slideClassName="composer-action-buttons"
+                activeKey={Number(hasText)}
+                direction="inverse"
+                name="slideFadeAndroid"
+              >
+                {!hasText && (
+                  <>
+                    {isChannel && (
+                      <Button
+                        round
+                        faded
+                        className="composer-action-button"
+                        color="translucent"
+                        onClick={handleToggleSilentPosting}
+                        ariaLabel={lang(
+                          isSilentPosting ? 'AriaComposerSilentPostingDisable' : 'AriaComposerSilentPostingEnable',
+                        )}
+                      >
+                        <Icon name={isSilentPosting ? 'mute' : 'unmute'} />
+                      </Button>
+                    )}
+                    {withScheduledButton && (
+                      <Button
+                        round
+                        faded
+                        className="composer-action-button scheduled-button"
+                        color="translucent"
+                        onClick={handleAllScheduledClick}
+                        ariaLabel={lang('AriaComposerOpenScheduled')}
+                      >
+                        <Icon name="schedule" />
+                      </Button>
+                    )}
+                    {Boolean(botKeyboardMessageId) && !activeVoiceRecording && !editingMessage && (
+                      <ResponsiveHoverButton
+                        className={buildClassName('composer-action-button', isBotKeyboardOpen && 'activated')}
+                        round
+                        color="translucent"
+                        onActivate={openBotKeyboard}
+                        ariaLabel={lang('AriaComposerBotKeyboard')}
+                      >
+                        <Icon name="bot-command" />
+                      </ResponsiveHoverButton>
+                    )}
+                  </>
+                )}
+              </Transition>
             </>
           )}
           {activeVoiceRecording && Boolean(currentRecordTime) && (
@@ -1958,7 +2041,7 @@ const Composer: FC<OwnProps & StateProps> = ({
           className={buildClassName('view-once', isViewOnceEnabled && 'active')}
           round
           color="secondary"
-          ariaLabel={lang('Chat.PlayOnceVoiceMessageTooltip')}
+          ariaLabel={oldLang('Chat.PlayOnceVoiceMessageTooltip')}
           onClick={toogleViewOnceEnabled}
         >
           <Icon name="view-once" />
@@ -1984,7 +2067,7 @@ const Composer: FC<OwnProps & StateProps> = ({
           onClick={handleLikeStory}
           onContextMenu={handleStoryPickerContextMenu}
           onMouseDown={handleBeforeStoryPickerContextMenu}
-          ariaLabel={lang('AccDescrLike')}
+          ariaLabel={oldLang('AccDescrLike')}
           ref={storyReactionRef}
         >
           {sentStoryReaction && (
@@ -2013,7 +2096,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         disabled={areVoiceMessagesNotAllowed}
         allowDisabledClick
         noFastClick
-        ariaLabel={lang(sendButtonAriaLabel)}
+        ariaLabel={oldLang(sendButtonAriaLabel)}
         onClick={mainButtonHandler}
         onContextMenu={
           mainButtonState === MainButtonState.Send && canShowCustomSendMenu ? handleContextMenu : undefined
@@ -2130,6 +2213,11 @@ export default memo(withGlobal<OwnProps>(
     const canSendQuickReplies = isChatWithUser && !isChatWithBot && !isInScheduledList && !isChatWithSelf;
 
     const noWebPage = selectNoWebPage(global, chatId, threadId);
+    const isSilentPosting = chat && getChatNotifySettings(
+      chat,
+      selectNotifyDefaults(global),
+      selectNotifyException(global, chatId),
+    )?.isSilentPosting;
 
     const areEffectsSupported = isChatWithUser && !isChatWithBot
     && !isInScheduledList && !isChatWithSelf && type !== 'story' && chatId !== SERVICE_NOTIFICATIONS_USER_ID;
@@ -2138,6 +2226,8 @@ export default memo(withGlobal<OwnProps>(
     const effectId = areEffectsSupported && draft?.effectId;
     const effect = effectId ? global.availableEffectById[effectId] : undefined;
     const effectReactions = global.reactions.effectReactions;
+
+    const maxMessageLength = global.config?.maxMessageLength || DEFAULT_MAX_MESSAGE_LENGTH;
 
     return {
       availableReactions: global.reactions.availableReactions,
@@ -2214,6 +2304,8 @@ export default memo(withGlobal<OwnProps>(
       areEffectsSupported,
       canPlayEffect,
       shouldPlayEffect,
+      maxMessageLength,
+      isSilentPosting,
     };
   },
 )(Composer));

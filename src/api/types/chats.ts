@@ -1,10 +1,10 @@
 import type { ApiBotCommand } from './bots';
 import type {
-  ApiChatReactions, ApiFormattedText, ApiPhoto, ApiStickerSet,
+  ApiChatReactions, ApiFormattedText, ApiInputMessageReplyInfo, ApiPhoto, ApiStickerSet,
 } from './messages';
-import type { ApiChatInviteImporter } from './misc';
+import type { ApiBotVerification, ApiChatInviteImporter, ApiPeerNotifySettings } from './misc';
 import type {
-  ApiEmojiStatus, ApiFakeType, ApiUser, ApiUsername,
+  ApiEmojiStatusType, ApiFakeType, ApiUser, ApiUsername,
 } from './users';
 
 type ApiChatType = (
@@ -27,8 +27,6 @@ export interface ApiChat {
   unreadMentionsCount?: number;
   unreadReactionsCount?: number;
   isVerified?: true;
-  isMuted?: boolean;
-  muteUntil?: number;
   areSignaturesShown?: boolean;
   areProfilesShown?: boolean;
   hasPrivateLink?: boolean;
@@ -44,10 +42,11 @@ export interface ApiChat {
   isProtected?: boolean;
   fakeType?: ApiFakeType;
   color?: ApiPeerColor;
-  emojiStatus?: ApiEmojiStatus;
+  emojiStatus?: ApiEmojiStatusType;
   isForum?: boolean;
   isForumAsMessages?: true;
   boostLevel?: number;
+  botVerificationIconId?: string;
 
   // Calls
   isCallActive?: boolean;
@@ -76,6 +75,8 @@ export interface ApiChat {
   isJoinToSend?: boolean;
   isJoinRequest?: boolean;
   sendAsPeerIds?: ApiSendAsPeerId[];
+  sendPaidReactionsAsPeerIds?: ApiSendAsPeerId[];
+  sendPaidReactionsPeer?: ApiSendAsPeerId;
 
   unreadReactions?: number[];
   unreadMentions?: number[];
@@ -119,7 +120,7 @@ export interface ApiChatFullInfo {
   };
   joinInfo?: {
     joinedDate: number;
-    inviter?: string;
+    inviterId?: string;
     isViaRequest?: boolean;
   };
   linkedChatId?: string;
@@ -140,9 +141,12 @@ export interface ApiChatFullInfo {
   hasPinnedStories?: boolean;
   isPaidReactionAvailable?: boolean;
   hasScheduledMessages?: boolean;
+  starGiftCount?: number;
+  areStarGiftsAvailable?: boolean;
 
   boostsApplied?: number;
   boostsToUnrestrict?: number;
+  botVerification?: ApiBotVerification;
 }
 
 export interface ApiChatMember {
@@ -207,7 +211,8 @@ export interface ApiRestrictionReason {
 
 export interface ApiChatFolder {
   id: number;
-  title: string;
+  title: ApiFormattedText;
+  noTitleAnimations?: true;
   description?: string;
   emoticon?: string;
   contacts?: true;
@@ -255,12 +260,12 @@ export interface ApiTopic {
   unreadMentionsCount: number;
   unreadReactionsCount: number;
   fromId: string;
-  isMuted?: boolean;
-  muteUntil?: number;
+  notifySettings: ApiPeerNotifySettings;
 }
 
 export interface ApiChatlistInviteNew {
-  title: string;
+  title: ApiFormattedText;
+  noTitleAnimations?: true;
   emoticon?: string;
   peerIds: string[];
   slug: string;
@@ -296,3 +301,11 @@ export interface ApiChatLink {
   chatId: string;
   text: ApiFormattedText;
 }
+
+export type ApiDraft = {
+  text?: ApiFormattedText;
+  replyInfo?: ApiInputMessageReplyInfo;
+  date?: number;
+  effectId?: string;
+  isLocal?: boolean;
+};

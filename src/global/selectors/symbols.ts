@@ -134,7 +134,8 @@ export function selectCustomEmojiForEmojis<T extends GlobalState>(
     }
     const customEmojis = Object.entries(packs)
       .filter(
-        ([emoji]) => emojis.includes(emoji) || emojis.includes(cleanEmoji(emoji)),
+        ([emoji]) =>
+          emojis.includes(emoji) || emojis.includes(cleanEmoji(emoji)),
       )
       .flatMap(([, stickers]) => stickers);
     customEmojiForEmoji = customEmojiForEmoji.concat(customEmojis);
@@ -148,8 +149,8 @@ export function selectIsSetPremium(
   stickerSet: Pick<ApiStickerSet, 'stickers' | 'isEmoji'>,
 ) {
   return (
-    stickerSet.isEmoji
-    && stickerSet.stickers?.some((sticker) => !sticker.isFree)
+    stickerSet.isEmoji &&
+    stickerSet.stickers?.some((sticker) => !sticker.isFree)
   );
 }
 
@@ -221,16 +222,9 @@ export function selectIsAlwaysHighPriorityEmoji<T extends GlobalState>(
 ) {
   if (!('id' in stickerSet)) return false;
   return (
-    stickerSet.id === global.appConfig?.defaultEmojiStatusesStickerSetId
-    || stickerSet.id === RESTRICTED_EMOJI_SET_ID
+    stickerSet.id === global.appConfig?.defaultEmojiStatusesStickerSetId ||
+    stickerSet.id === RESTRICTED_EMOJI_SET_ID
   );
-}
-
-export function selectStarGiftSticker<T extends GlobalState>(
-  global: T,
-  id: string,
-) {
-  return global.stickers.starGifts.stickers[id];
 }
 
 export function selectGiftStickerForDuration<T extends GlobalState>(

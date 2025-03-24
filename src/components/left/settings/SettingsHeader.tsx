@@ -1,6 +1,9 @@
 import type { FC } from '../../../lib/teact/teact';
 import React, {
-  memo, useCallback, useMemo, useState,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
 } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
@@ -11,6 +14,7 @@ import useLang from '../../../hooks/useLang';
 import useMultiClick from '../../../hooks/useMultiClick';
 import useOldLang from '../../../hooks/useOldLang';
 
+import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import DropdownMenu from '../../ui/DropdownMenu';
@@ -29,10 +33,7 @@ const SettingsHeader: FC<OwnProps> = ({
   onReset,
   onScreenSelect,
 }) => {
-  const {
-    signOut,
-    openDeleteChatFolderModal,
-  } = getActions();
+  const { signOut, openDeleteChatFolderModal } = getActions();
 
   const { isMobile } = useAppLayout();
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
@@ -60,21 +61,22 @@ const SettingsHeader: FC<OwnProps> = ({
     signOut({ forceInitApi: true });
   }, [closeSignOutConfirmation, signOut]);
 
-  const SettingsMenuButton: FC<{ onTrigger: () => void; isOpen?: boolean }> = useMemo(() => {
-    return ({ onTrigger, isOpen }) => (
-      <Button
-        round
-        ripple={!isMobile}
-        size="smaller"
-        color="translucent"
-        className={isOpen ? 'active' : ''}
-        onClick={onTrigger}
-        ariaLabel="More actions"
-      >
-        <i className="icon icon-more" />
-      </Button>
-    );
-  }, [isMobile]);
+  const SettingsMenuButton: FC<{ onTrigger: () => void; isOpen?: boolean }> =
+    useMemo(() => {
+      return ({ onTrigger, isOpen }) => (
+        <Button
+          round
+          ripple={!isMobile}
+          size="smaller"
+          color="translucent"
+          className={isOpen ? 'active' : ''}
+          onClick={onTrigger}
+          ariaLabel="More actions"
+        >
+          <Icon name="more" />
+        </Button>
+      );
+    }, [isMobile]);
 
   const oldLang = useOldLang();
   const lang = useLang();
@@ -163,7 +165,7 @@ const SettingsHeader: FC<OwnProps> = ({
         return <h3>{oldLang('NeverAllow')}</h3>;
 
       case SettingsScreens.Performance:
-        return <h3>{oldLang('Animations and Performance')}</h3>;
+        return <h3>{lang('MenuAnimations')}</h3>;
 
       case SettingsScreens.ActiveSessions:
         return <h3>{oldLang('SessionsTitle')}</h3>;
@@ -212,7 +214,9 @@ const SettingsHeader: FC<OwnProps> = ({
         return <h3>{oldLang('PasscodeController.Change.Title')}</h3>;
 
       case SettingsScreens.PasscodeChangePasscodeConfirm:
-        return <h3>{oldLang('PasscodeController.ReEnterPasscode.Placeholder')}</h3>;
+        return (
+          <h3>{oldLang('PasscodeController.ReEnterPasscode.Placeholder')}</h3>
+        );
 
       case SettingsScreens.Folders:
         return <h3>{oldLang('Filters')}</h3>;
@@ -232,7 +236,11 @@ const SettingsHeader: FC<OwnProps> = ({
                 trigger={SettingsMenuButton}
                 positionX="right"
               >
-                <MenuItem icon="delete" destructive onClick={openDeleteFolderConfirmation}>
+                <MenuItem
+                  icon="delete"
+                  destructive
+                  onClick={openDeleteFolderConfirmation}
+                >
                   {oldLang('Delete')}
                 </MenuItem>
               </DropdownMenu>
@@ -246,9 +254,11 @@ const SettingsHeader: FC<OwnProps> = ({
         return (
           <h3>
             {oldLang(
-              currentScreen === SettingsScreens.FoldersIncludedChats
-                  || currentScreen === SettingsScreens.FoldersIncludedChatsFromChatList
-                ? 'FilterInclude' : 'FilterExclude',
+              currentScreen === SettingsScreens.FoldersIncludedChats ||
+                currentScreen ===
+                  SettingsScreens.FoldersIncludedChatsFromChatList
+                ? 'FilterInclude'
+                : 'FilterExclude',
             )}
           </h3>
         );
@@ -256,9 +266,7 @@ const SettingsHeader: FC<OwnProps> = ({
         return (
           <div className="settings-main-header">
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-            <h3 onClick={handleMultiClick}>
-              {oldLang('SETTINGS')}
-            </h3>
+            <h3 onClick={handleMultiClick}>{oldLang('SETTINGS')}</h3>
 
             <Button
               round
@@ -269,21 +277,44 @@ const SettingsHeader: FC<OwnProps> = ({
               onClick={() => onScreenSelect(SettingsScreens.EditProfile)}
               ariaLabel={oldLang('lng_settings_information')}
             >
-              <i className="icon icon-edit" />
+              <Icon name="edit" />
             </Button>
             <DropdownMenu
               className="settings-more-menu"
               trigger={SettingsMenuButton}
               positionX="right"
             >
-              <MenuItem icon="logout" onClick={openSignOutConfirmation}>{oldLang('LogOutTitle')}</MenuItem>
+              <MenuItem icon="logout" onClick={openSignOutConfirmation}>
+                {oldLang('LogOutTitle')}
+              </MenuItem>
             </DropdownMenu>
           </div>
         );
     }
   }
 
-  return 
+  return (
+    <div className="left-header">
+      <Button
+        round
+        size="smaller"
+        color="translucent"
+        onClick={onReset}
+        ariaLabel={oldLang('AccDescrGoBack')}
+      >
+        <Icon name="arrow-left" />
+      </Button>
+      {renderHeaderContent()}
+      <ConfirmDialog
+        isOpen={isSignOutDialogOpen}
+        onClose={closeSignOutConfirmation}
+        text={oldLang('lng_sure_logout')}
+        confirmLabel={oldLang('AccountSettings.Logout')}
+        confirmHandler={handleSignOutMessage}
+        confirmIsDestructive
+      />
+    </div>
+  );
 };
 
 export default memo(SettingsHeader);

@@ -20,6 +20,7 @@ import {
   getMessageWebPagePhoto,
   getMessageWebPageVideo,
 } from '../../../global/helpers';
+import buildClassName from '../../../util/buildClassName';
 import { getDebugLogs } from '../../../util/debugConsole';
 import { validateFiles } from '../../../util/files';
 import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
@@ -154,7 +155,8 @@ const AttachMenu: FC<OwnProps> = ({
     return attachBots
       ? Object.values(attachBots).filter((bot) => {
         if (!peerType || !bot.isForAttachMenu) return false;
-        if (peerType === 'bots' && bot.id === chatId && bot.attachMenuPeerTypes.includes('self')) {
+        if (peerType === 'bots' && bot.id === chatId
+          && bot.attachMenuPeerTypes && bot.attachMenuPeerTypes.includes('self')) {
           return true;
         }
         return bot.attachMenuPeerTypes!.includes(peerType);
@@ -174,7 +176,7 @@ const AttachMenu: FC<OwnProps> = ({
         editingMessage && canEditMedia ? (
           <ResponsiveHoverButton
             id="replace-menu-button"
-            className={isAttachMenuOpen ? 'AttachMenu--button activated' : 'AttachMenu--button'}
+            className={buildClassName('AttachMenu--button composer-action-button', isAttachMenuOpen && 'activated')}
             round
             color="translucent"
             onActivate={handleToggleAttachMenu}
@@ -188,7 +190,7 @@ const AttachMenu: FC<OwnProps> = ({
           <ResponsiveHoverButton
             id="attach-menu-button"
             disabled={Boolean(editingMessage)}
-            className={isAttachMenuOpen ? 'AttachMenu--button activated' : 'AttachMenu--button'}
+            className={buildClassName('AttachMenu--button composer-action-button', isAttachMenuOpen && 'activated')}
             round
             color="translucent"
             onActivate={handleToggleAttachMenu}

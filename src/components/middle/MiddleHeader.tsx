@@ -8,10 +8,14 @@ import type {
   ApiSticker,
   ApiTypingStatus,
 } from '../../api/types';
-import type { GlobalState, MessageListType } from '../../global/types';
+import type { GlobalState } from '../../global/types';
 import type { Signal } from '../../util/signals';
 import { MAIN_THREAD_ID } from '../../api/types';
-import { StoryViewerOrigin, type ThreadId } from '../../types';
+import {
+  type MessageListType,
+  StoryViewerOrigin,
+  type ThreadId,
+} from '../../types';
 
 import {
   EDITABLE_INPUT_CSS_SELECTOR,
@@ -83,6 +87,7 @@ type StateProps = {
   isSyncing?: boolean;
   isFetchingDifference?: boolean;
   emojiStatusSticker?: ApiSticker;
+  emojiStatusSlug?: string;
 };
 
 const MiddleHeader: FC<OwnProps & StateProps> = ({
@@ -106,6 +111,7 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
   getCurrentPinnedIndex,
   getLoadingPinnedId,
   emojiStatusSticker,
+  emojiStatusSlug,
   isSavedDialog,
   onFocusPinnedMessage,
 }) => {
@@ -118,6 +124,7 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
     openPremiumModal,
     openStickerSet,
     updateMiddleSearch,
+    openUniqueGiftBySlug,
   } = getActions();
 
   const lang = useOldLang();
@@ -165,10 +172,18 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
   });
 
   const handleUserStatusClick = useLastCallback(() => {
+    if (emojiStatusSlug) {
+      openUniqueGiftBySlug({ slug: emojiStatusSlug });
+      return;
+    }
     openPremiumModal({ fromUserId: chatId });
   });
 
   const handleChannelStatusClick = useLastCallback(() => {
+    if (emojiStatusSlug) {
+      openUniqueGiftBySlug({ slug: emojiStatusSlug });
+      return;
+    }
     openStickerSet({
       stickerSetInfo: emojiStatusSticker!.stickerSetInfo,
     });
@@ -212,9 +227,10 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
   );
 
   const prevTransitionKey = usePreviousDeprecated(currentTransitionKey);
-  const cleanupExceptionKey = prevTransitionKey !== undefined && prevTransitionKey < currentTransitionKey
-    ? prevTransitionKey
-    : undefined;
+  const cleanupExceptionKey =
+    prevTransitionKey !== undefined && prevTransitionKey < currentTransitionKey
+      ? prevTransitionKey
+      : undefined;
 
   const isAudioPlayerActive = Boolean(audioMessage);
   const isAudioPlayerRendering = isDesktop && isAudioPlayerActive;
@@ -244,12 +260,12 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
                 ? lang(isComments ? 'Comments' : 'Replies', messagesCount, 'i')
                 : lang(isComments ? 'CommentsTitle' : 'RepliesTitle')
               : messageListType === 'pinned'
-                ? lang('PinnedMessagesCount', messagesCount, 'i')
-                : messageListType === 'scheduled'
-                  ? isChatWithSelf
-                    ? lang('Reminders')
-                    : lang('messages', messagesCount, 'i')
-                  : undefined
+              ? lang('PinnedMessagesCount', messagesCount, 'i')
+              : messageListType === 'scheduled'
+              ? isChatWithSelf
+                ? lang('Reminders')
+                : lang('messages', messagesCount, 'i')
+              : undefined
             : lang('Loading')}
         </h3>
       </>
@@ -377,9 +393,7 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
 
 export default memo(
   withGlobal<OwnProps>(
-    (global, {
-      chatId, threadId, messageListType, isMobile,
-    }): StateProps => {
+    (global, { chatId, threadId, messageListType, isMobile }): StateProps => {
       const {
         isLeftColumnShown,
         shouldSkipHistoryAnimations,
@@ -389,9 +403,10 @@ export default memo(
       const chat = selectChat(global, chatId);
 
       const { chatId: audioChatId, messageId: audioMessageId } = audioPlayer;
-      const audioMessage = audioChatId && audioMessageId
-        ? selectChatMessage(global, audioChatId, audioMessageId)
-        : undefined;
+      const audioMessage =
+        audioChatId && audioMessageId
+          ? selectChatMessage(global, audioChatId, audioMessageId)
+          : undefined;
 
       let messagesCount: number | undefined;
       if (messageListType === 'pinned') {
@@ -413,7 +428,10 @@ export default memo(
       );
 
       const emojiStatus = chat?.emojiStatus;
-      const emojiStatusSticker = emojiStatus && global.customEmojis.byId[emojiStatus.documentId];
+      const emojiStatusSticker =
+        emojiStatus && global.customEmojis.byId[emojiStatus.documentId];
+      const emojiStatusSlug =
+        emojiStatus?.type === 'collectible' ? emojiStatus.slug : undefined;
 
       const isSavedDialog = getIsSavedDialog(
         chatId,
@@ -436,6 +454,7 @@ export default memo(
         isSyncing: global.isSyncing,
         isFetchingDifference: global.isFetchingDifference,
         emojiStatusSticker,
+        emojiStatusSlug,
         isSavedDialog,
       };
     },
