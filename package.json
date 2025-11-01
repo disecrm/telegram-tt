@@ -58,7 +58,7 @@
     "@babel/register": "^7.23.7",
     "@electron/rebuild": "^3.6.0",
     "@glen/jest-raw-loader": "^2.0.0",
-    "@playwright/test": "^1.44.0",
+    "@playwright/test": "^1.56.1",
     "@statoscope/cli": "5.28.2",
     "@statoscope/webpack-plugin": "5.28.2",
     "@stylistic/stylelint-config": "^1.0.1",
